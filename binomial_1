@@ -1,4 +1,9 @@
-n = 10;                       % Number of available quanta
-pRelease = 0.2;               % Release probabilty 
-k = 0:10;                     % Possible values of k (measured events)
-probs = binopdf(k,n,pRelease) % Array of probabilities of obtaining those values of k, given n and prelease
+%exercise 1
+
+for k = 0:10
+    n = 10;
+    p = 0.2;
+    b = nchoosek(n,k);
+    P = b * p^k * (1-p)^(n-k);
+    disp(P)
+end 
