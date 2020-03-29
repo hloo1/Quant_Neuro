@@ -4,9 +4,10 @@ head(mcsf1r)
 WT = mcsf1r[1:24,]
 Variant_X = mcsf1r[25:60,]
 Variant_Y = mcsf1r[61:96,]
+Variant_Y
 
 #Plotting Initial dose-response curves
-plot(log(Variant_X$Concentration), Variant_X$Norm_Value)
+plot(log(Variant_X$Concentration), Variant_X$min.max.scaling)
 plot(log(Variant_Y$Concentration), Variant_Y$Norm_Value)
 plot(log(WT$Concentration), WT$Norm_Value)
 WT
@@ -16,48 +17,95 @@ install.packages("drc")
 library(drc)
 install.packages("ggplot2")
 library(ggplot2)
-
+?lpar
 #Creating supblots of DRC curves for WT and variants
+?drm
 par(mfrow=c(1,3))
-WT_drm = drm(Norm_Value ~ log(Concentration), data = WT, fct = LL.4())
+WT_drm = drm(min.max.scaling ~ Concentration, data = WT, fct = LL.4())
 plot(WT_drm, main="WT")
 
 
-Y_drm = drm(Norm_Value ~ log(Concentration), data = Variant_Y, fct = LL.4())
+Y_drm = drm(min.max.scaling ~ Concentration, data = Variant_Y, fct = LL.4())
 plot(Y_drm, main="Variant Y")
 
-Y_drm = drm(Norm_Value ~ log(Concentration), data = Variant_X, fct = LL.4())
-summary(Y_drm)
-plot(Y_drm, main="Variant X")
+X_drm = drm(min.max.scaling ~ Concentration, data = Variant_X, fct = LL.4())
+summary(X_drm)
+plot(X_drm, main="Variant X")
 
 #calculating EC50 for each condition
 library(sandwich)
 install.packages("lmtest")
 library(lmtest)
+install.packages("gridExtra")
+library(gridExtra)
+library(grid)
+library(ggplot2)
+library(lattice)
 coeftest(Y_drm, vcov=sandwich)
-ED(Y_drm, c(50), interval="delta")
-ED(X_drm, c(50), interval="delta")
-ED(WT_drm, c(50), interval="delta")
-
+ED(Y_drm, c(50), interval=c("delta"), level=0.95, NULL)
+exp(7.370934)
+ED(X_drm, c(50), interval=c("delta"), level=0.95, NULL)
+ED(WT_drm, c(50), interval=c("delta"), level=-0.95, NULL)
+?ED
 ?drm
+?LL.4
+install.packages("reshape")
+library(reshape)
 #Creating ggplots for drc w EC50 lines
-ggplot(data=Variant_Y, mapping=aes(x=log(Concentration), y = Norm_Value)) + geom_point() + stat_smooth(
+
+colours = c("Variant Y" = "blue", "Variant X" = "red", "WT" = "green")
+var.all = ggplot() + 
+  geom_point(data=Variant_Y, aes(x=log(Concentration), y = min.max.scaling, colour="Variant Y")) + stat_smooth(data=Variant_Y, aes(x=log(Concentration), y=min.max.scaling),
+                                                                                                                 method = "drm",
+                                                                                                                 method.args = list(
+                                                                                                                   fct = LL.4(names = c("hill", "min_value", "max_value", "ec_50"))
+                                                                                                                 ),
+                                                                                                                 se = F) +
+  geom_point(data=Variant_X, aes(x=log(Concentration), y = min.max.scaling, colour="Variant X")) + stat_smooth(data=Variant_X, aes(x=log(Concentration), y=min.max.scaling),
+    method = "drm",
+    method.args = list(
+      fct = LL.4(names = c("hill", "min_value", "max_value", "ec_50"))
+    ),
+    se = F) +
+  geom_point(data=WT, aes(x=log(Concentration), y = min.max.scaling, colour="WT")) + stat_smooth(data=WT, aes(x=log(Concentration), y=min.max.scaling),
+                                                                                                  method = "drm",
+                                                                                                  method.args = list(
+                                                                                                    fct = LL.4(names = c("hill", "min_value", "max_value", "ec_50"))
+                                                                                                  ),
+                                                                                                  se = F) +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=12,face="bold")) + 
+  labs(x="log(Concentration (nM))", y = "Relative Cell Survival")
+var.all
+?stat_smooth
+
+ggplot() + stat_smooth(data=Variant_X, aes(x=log(Concentration), y=min.max.scaling),
+                       method = "drm",
+                       method.args = list(
+                         fct = LL.4(names = c("hill", "min_value", "max_value", "ec_50"))
+                       ), se = F)
+
+var.y = ggplot(data=Variant_Y, mapping=aes(x=log(Concentration), y = min.max.scaling)) + geom_point() + stat_smooth(
   method = "drm",
   method.args = list(
     fct = LL.4(names = c("hill", "min_value", "max_value", "ec_50"))
   ),
-  se = F) + labs(x="Concentration (nM)", y="Fluorescence", title="Variant Y") + geom_vline(aes(xintercept=8.279523))
-
-ggplot(data=Variant_X, mapping=aes(x=log(Concentration), y = Norm_Value)) + geom_point() + stat_smooth(
+  se = F) + theme(axis.text=element_text(size=12),
+                  axis.title=element_text(size=12,face="bold"), plot.title = element_text(size=18)) + labs(x="log(Concentration (nM))", y = "", title="Variant Y") + geom_vline(aes(xintercept=8.279523)) + geom_point(log(Concentration), min.max.scaling)
+var.y
+var.x = ggplot(data=Variant_X, mapping=aes(x=log(Concentration), y = min.max.scaling)) + geom_point() + stat_smooth(
   method = "drm",
   method.args = list(
     fct = LL.4(names = c("hill", "min_value", "max_value", "ec_50")) 
   ),
-  se = F) + labs(x="Concentration (nM)", y="Fluorescence", title="Variant X") + geom_vline(aes(xintercept=7.370934))
+  se = F) + theme(axis.text=element_text(size=12),
+                  axis.title=element_text(size=12,face="bold"), plot.title = element_text(size=18)) + labs(x="log(Concentration (nM))", y = "", title="Variant X") + geom_vline(aes(xintercept=7.370934))
 
-ggplot(data=WT, mapping=aes(x=log(Concentration), y = Norm_Value)) + geom_point() + stat_smooth(
+wt_gg = ggplot(data=WT, mapping=aes(x=log(Concentration), y = min.max.scaling)) + geom_point() + stat_smooth(
   method = "drm",
   method.args = list(
     fct = LL.4(names = c("hill", "min_value", "max_value", "ec_50"))
   ),
-  se = F) + labs(x="Concentration (nM)", y="Fluorescence", title="WT") + geom_vline(aes(xintercept=4.371076))
+  se = F) + theme(axis.text=element_text(size=12),
+                  axis.title=element_text(size=12,face="bold"), plot.title = element_text(size=18)) + labs(x="log(Concentration (nM))", y="Relative Cell Survival", title="WT") + geom_vline(aes(xintercept=4.371076))
+grid.arrange(wt_gg, var.x, var.y, ncol=3)
+
